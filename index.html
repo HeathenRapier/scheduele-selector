@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Optimizador de selección de materias</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+        --primary: #1d4ed8;
+        --secondary: #0f172a;
+        --muted: #64748b;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --success: #15803d;
+        --warning: #b45309;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--secondary);
+        padding: 32px 20px 48px;
+      }
+
+      header {
+        max-width: 1100px;
+        margin: 0 auto 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+      }
+
+      p.lead {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.05rem;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        gap: 20px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        padding: 20px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+      }
+
+      .status-banner {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .status-banner strong {
+        font-size: 1.05rem;
+      }
+
+      .status-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .badge {
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        border: 1px solid var(--border);
+        background: #f1f5f9;
+      }
+
+      .badge.success {
+        background: #dcfce7;
+        border-color: #86efac;
+        color: var(--success);
+      }
+
+      .badge.pending {
+        background: #fef9c3;
+        border-color: #fde047;
+        color: var(--warning);
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      button {
+        border: none;
+        background: var(--primary);
+        color: white;
+        padding: 10px 16px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      button.secondary {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(30, 64, 175, 0.2);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        background: #cbd5f5;
+        box-shadow: none;
+      }
+
+      .subjects {
+        display: grid;
+        gap: 16px;
+      }
+
+      .subject {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .subject-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .subject-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+
+      .selected {
+        background: #eff6ff;
+        border-radius: 10px;
+        padding: 8px 12px;
+        border: 1px solid #bfdbfe;
+        font-size: 0.95rem;
+      }
+
+      .options {
+        display: grid;
+        gap: 10px;
+      }
+
+      .option-row {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+
+      .option-row.full {
+        background: #fff1f2;
+        border-color: #fecdd3;
+      }
+
+      .priority {
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .capacity {
+        font-weight: 600;
+      }
+
+      .capacity.full {
+        color: #be123c;
+      }
+
+      .capacity.available {
+        color: var(--success);
+      }
+
+      .timeline {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 8px;
+      }
+
+      .timeline li {
+        padding: 8px 12px;
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        font-size: 0.95rem;
+      }
+
+      @media (max-width: 780px) {
+        .option-row {
+          grid-template-columns: 1fr;
+          text-align: left;
+        }
+
+        .controls {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Optimizador de selección para carga de materias</h1>
+      <p class="lead">
+        Prioriza profesores del 1 al 3 y recibe actualizaciones en tiempo real cuando una materia se llena para
+        moverte automáticamente a la siguiente mejor opción.
+      </p>
+    </header>
+
+    <main>
+      <section class="card status-banner">
+        <strong>Estado general del horario</strong>
+        <div class="status-badges" id="scheduleStatus"></div>
+        <div class="controls">
+          <span id="completionMessage">Ajusta las prioridades para completar tu horario.</span>
+          <button class="secondary" id="resetButton" type="button">Restablecer disponibilidad</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="subjects" id="subjects"></div>
+      </section>
+
+      <section class="card">
+        <strong>Actualizaciones en tiempo real</strong>
+        <ul class="timeline" id="eventLog"></ul>
+      </section>
+    </main>
+
+    <script>
+      const subjects = [
+        {
+          id: "matematicas",
+          name: "Matemáticas Aplicadas",
+          options: [
+            { professor: "Dra. R. Sánchez", priority: 1 },
+            { professor: "Mtro. A. Pérez", priority: 2 },
+            { professor: "Ing. C. Luna", priority: 3 }
+          ]
+        },
+        {
+          id: "programacion",
+          name: "Programación Avanzada",
+          options: [
+            { professor: "Mtra. G. Torres", priority: 1 },
+            { professor: "Dr. J. Hernández", priority: 2 },
+            { professor: "Mtro. L. Rivas", priority: 3 }
+          ]
+        },
+        {
+          id: "marketing",
+          name: "Marketing Digital",
+          options: [
+            { professor: "Mtra. P. Gutiérrez", priority: 1 },
+            { professor: "Lic. M. Ortiz", priority: 2 },
+            { professor: "Dr. F. Cabrera", priority: 3 }
+          ]
+        }
+      ];
+
+      const state = {
+        availability: {},
+        log: []
+      };
+
+      const subjectsContainer = document.getElementById("subjects");
+      const scheduleStatus = document.getElementById("scheduleStatus");
+      const eventLog = document.getElementById("eventLog");
+      const completionMessage = document.getElementById("completionMessage");
+      const resetButton = document.getElementById("resetButton");
+
+      const formatTimestamp = () => new Intl.DateTimeFormat("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }).format(new Date());
+
+      const logEvent = (message) => {
+        state.log.unshift({ message, time: formatTimestamp() });
+        state.log = state.log.slice(0, 6);
+        renderLog();
+      };
+
+      const toggleAvailability = (subjectId, professor) => {
+        const key = `${subjectId}-${professor}`;
+        state.availability[key] = !state.availability[key];
+        const status = state.availability[key] ? "llena" : "disponible";
+        logEvent(`La materia ${subjectId} con ${professor} ahora está ${status}.`);
+        render();
+      };
+
+      const getSelectedOption = (subject) => {
+        return subject.options.find((option) => {
+          const key = `${subject.id}-${option.professor}`;
+          return !state.availability[key];
+        });
+      };
+
+      const renderStatus = () => {
+        scheduleStatus.innerHTML = "";
+        let completed = 0;
+
+        subjects.forEach((subject) => {
+          const selected = getSelectedOption(subject);
+          const badge = document.createElement("span");
+          badge.className = "badge";
+
+          if (selected) {
+            badge.classList.add("success");
+            badge.textContent = `${subject.name}: ${selected.professor}`;
+            completed += 1;
+          } else {
+            badge.classList.add("pending");
+            badge.textContent = `${subject.name}: sin cupo disponible`;
+          }
+
+          scheduleStatus.appendChild(badge);
+        });
+
+        if (completed === subjects.length) {
+          completionMessage.textContent = "Horario completo con las mejores opciones disponibles.";
+        } else {
+          completionMessage.textContent = "Ajusta la disponibilidad para completar tu horario.";
+        }
+      };
+
+      const renderLog = () => {
+        eventLog.innerHTML = "";
+        if (state.log.length === 0) {
+          const empty = document.createElement("li");
+          empty.textContent = "Sin cambios recientes.";
+          eventLog.appendChild(empty);
+          return;
+        }
+
+        state.log.forEach((entry) => {
+          const item = document.createElement("li");
+          item.textContent = `[${entry.time}] ${entry.message}`;
+          eventLog.appendChild(item);
+        });
+      };
+
+      const render = () => {
+        subjectsContainer.innerHTML = "";
+
+        subjects.forEach((subject) => {
+          const subjectEl = document.createElement("article");
+          subjectEl.className = "subject";
+
+          const header = document.createElement("div");
+          header.className = "subject-header";
+
+          const title = document.createElement("div");
+          title.className = "subject-title";
+          title.textContent = subject.name;
+
+          const selectedOption = getSelectedOption(subject);
+          const selected = document.createElement("div");
+          selected.className = "selected";
+          selected.textContent = selectedOption
+            ? `Seleccion actual: ${selectedOption.professor} (Prioridad ${selectedOption.priority})`
+            : "Sin cupo disponible por ahora";
+
+          header.append(title, selected);
+          subjectEl.appendChild(header);
+
+          const options = document.createElement("div");
+          options.className = "options";
+
+          subject.options.forEach((option) => {
+            const key = `${subject.id}-${option.professor}`;
+            const isFull = state.availability[key] === true;
+
+            const row = document.createElement("div");
+            row.className = "option-row";
+            if (isFull) row.classList.add("full");
+
+            const professor = document.createElement("div");
+            professor.textContent = option.professor;
+
+            const priority = document.createElement("div");
+            priority.className = "priority";
+            priority.textContent = `Prioridad ${option.priority}`;
+
+            const capacity = document.createElement("div");
+            capacity.className = "capacity";
+            capacity.classList.add(isFull ? "full" : "available");
+            capacity.textContent = isFull ? "Cupo lleno" : "Disponible";
+
+            const action = document.createElement("button");
+            action.type = "button";
+            action.textContent = isFull ? "Marcar disponible" : "Marcar lleno";
+            action.className = isFull ? "secondary" : "";
+            action.addEventListener("click", () => toggleAvailability(subject.id, option.professor));
+
+            row.append(professor, priority, capacity, action);
+            options.appendChild(row);
+          });
+
+          subjectEl.appendChild(options);
+          subjectsContainer.appendChild(subjectEl);
+        });
+
+        renderStatus();
+      };
+
+      const reset = () => {
+        state.availability = {};
+        logEvent("Se restableció la disponibilidad de todas las materias.");
+        render();
+      };
+
+      resetButton.addEventListener("click", reset);
+
+      renderStatus();
+      renderLog();
+      render();
+    </script>
+  </body>
+</html>
